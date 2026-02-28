@@ -48,5 +48,4 @@ WORKDIR /app
 # Install Node dependencies
 RUN npm install
 
-# Start Virtual Display + App
-CMD Xvfb :99 -screen 0 1280x800x24 & node app.js
+CMD Xvfb :99 -screen 0 1280x800x24 & node --max-old-space-size=400 app.js
