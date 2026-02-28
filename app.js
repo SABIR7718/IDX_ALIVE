@@ -7,7 +7,7 @@ const http = require('http');
 const PORT = process.env.PORT || 10000;
 
 // --- ⚙️ CONFIGURATION ---
-const BOT_TOKEN = Buffer.from("ODc5NjE0MjQ5NjpBQUZQSVNuOFg4eGxIZnI4RVpFbVA1MHhrSHlPT09IUEJ3TQ==", 'base64').toString('utf-8');
+const BOT_TOKEN = "8796142496:AAFPISn8X8xlHfr8EZEmP50xkHyOOOHpBwM";
 const CHAT_ID = '1401470950';
 const DEB_FILE = './google-chrome-stable_current_amd64.deb';
 const PROFILE_PATH = path.resolve(__dirname, 'chrome-profile');
