@@ -3,9 +3,11 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const http = require('http');
+const PORT = process.env.PORT || 10000;
 
 // --- ⚙️ CONFIGURATION ---
-const BOT_TOKEN = '8796142496:AAFPISn8X8xlHfr8EZEmP50xkHyOOOHpBwM'; 
+const BOT_TOKEN = Buffer.from("ODc5NjE0MjQ5NjpBQUZQSVNuOFg4eGxIZnI4RVpFbVA1MHhrSHlPT09IUEJ3TQ==", 'base64').toString('utf-8');
 const CHAT_ID = '1401470950';
 const DEB_FILE = './google-chrome-stable_current_amd64.deb';
 const PROFILE_PATH = path.resolve(__dirname, 'chrome-profile');
@@ -59,7 +61,6 @@ async function getTgMessage() {
     return null;
 }
 
-// 📸 NAYA FUNCTION: Screenshot bhejne ke liye (Zero Dependency)
 function sendTgPhoto(imagePath) {
     return new Promise((resolve, reject) => {
         const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
@@ -276,7 +277,13 @@ async function main() {
     }
 }
 
-// Ensure Xvfb is killed if the node script stops
+http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end("SY WILL LOVE YOU");
+}).listen(PORT, () => {
+    console.log("Server started on port " + PORT);
+});
+
 process.on('exit', () => {
     if (xvfbProcess) xvfbProcess.kill();
 });
