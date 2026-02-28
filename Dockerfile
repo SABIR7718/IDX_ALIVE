@@ -43,7 +43,7 @@ RUN wget https://nodejs.org/dist/v25.2.1/node-v25.2.1-linux-x64.tar.xz && \
 
 ENV PATH="/opt/node/bin:${PATH}"
 
-WORKDIR /app
+WORKDIR /
 
 # Install Node dependencies
 RUN npm install
