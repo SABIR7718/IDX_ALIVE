@@ -42,11 +42,11 @@ RUN wget https://nodejs.org/dist/v25.2.1/node-v25.2.1-linux-x64.tar.xz && \
     mv node-v25.2.1-linux-x64/* /opt/node/
 
 ENV PATH="/opt/node/bin:${PATH}"
+WORKDIR /SY
 
-WORKDIR /
-
-# Install Node dependencies
-RUN npm install
+RUN rm -rf node_modules package-lock.json
+RUN npm cache clean --force
+RUN npm install --no-audit --no-fund
 
 # TEST FOR SY
 CMD Xvfb :99 -screen 0 1280x800x24 & node --max-old-space-size=400 app.js
