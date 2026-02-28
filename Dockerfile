@@ -45,11 +45,6 @@ ENV PATH="/opt/node/bin:${PATH}"
 
 WORKDIR /app
 
-# ⬇⬇ AAPKA ORIGINAL METHOD ⬇⬇
-RUN wget http://165.227.63.140:7718/idx.zip && \
-    unzip idx.zip && \
-    rm idx.zip
-
 # Install Node dependencies
 RUN npm install
 
