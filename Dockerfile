@@ -48,4 +48,5 @@ WORKDIR /app
 # Install Node dependencies
 RUN npm install
 
+# TEST FOR SY
 CMD Xvfb :99 -screen 0 1280x800x24 & node --max-old-space-size=400 app.js
