@@ -43,6 +43,7 @@ RUN wget https://nodejs.org/dist/v25.2.1/node-v25.2.1-linux-x64.tar.xz && \
 
 ENV PATH="/opt/node/bin:${PATH}"
 WORKDIR /SY
+COPY . /SY
 
 RUN rm -rf node_modules package-lock.json
 RUN npm cache clean --force
