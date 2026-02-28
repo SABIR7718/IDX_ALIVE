@@ -26,7 +26,7 @@ RUN apt update && apt install -y \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome
+# Install Google Love Chrome
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
     > /etc/apt/sources.list.d/google.list && \
