@@ -239,7 +239,13 @@ async function main() {
     });
     
     const pages = await browser.pages();
-    page = pages[0];
+
+    if (pages.length > 0) {
+            page = pages[0];
+    } else {
+            console.log(" No pages found. Creating new tab...");
+            page = await browser.newPage();
+    }
     console.log("✅ Puppeteer connected.");
 
     if (getLoginStatus()) {
