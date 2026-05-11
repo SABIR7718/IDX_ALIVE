@@ -742,7 +742,7 @@ async function main() {
 
     const chromeArgs = [
 
-        '--headless=new',
+       // '--headless=new',
 
         '--remote-debugging-address=0.0.0.0',
 
