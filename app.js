@@ -47,6 +47,7 @@ const DEB_FILE = process.env.DEB_FILE;
 const PROFILE_PATH = process.env.PROFILE_PATH || path.resolve(__dirname, 'chrome-profile');
 const STATUS_FILE = process.env.STATUS_FILE;
 const IDX_URL = process.env.IDX_URL;
+const FIREBASE_URL = process.env.FIREBASE_URL;
 const REFRESH_INTERVAL = parseInt(process.env.REFRESH_INTERVAL) || 60000;
 
 if (!BOT_TOKEN || !CHAT_ID) {
@@ -64,8 +65,45 @@ process.on('uncaughtException', (err) => log('error', 'CRITICAL', err.message));
 process.on('unhandledRejection', (reason) => log('error', 'CRITICAL', reason));
 
 async function saveToFirebase(data) {
-    fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
-    log('info', 'SESSION', `Session saved with fileId: ${data.fileId}`);
+    try {
+        const response = await fetch(FIREBASE_URL, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            log('success', 'FIREBASE', `Session saved to Firebase | fileId: ${data.fileId}`);
+        } else {
+            log('error', 'FIREBASE', `Failed to save: ${response.status}`);
+            fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
+        }
+    } catch (err) {
+        log('error', 'FIREBASE', `Firebase error: ${err.message}`);
+        fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
+    }
+}
+
+async function getFromFirebase() {
+    try {
+        const response = await fetch(FIREBASE_URL);
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.fileId) {
+                log('success', 'FIREBASE', 'Loaded session from Firebase');
+                return data;
+            }
+        }
+    } catch (err) {
+        log('warn', 'FIREBASE', `Firebase read failed: ${err.message}`);
+    }
+
+    if (fs.existsSync(STATUS_FILE)) {
+        try {
+            return JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
+        } catch (e) {}
+    }
+    return null;
 }
 
 function isProfileValid() {
@@ -342,18 +380,29 @@ async function startVirtualDisplay() {
     log('success', 'DISPLAY', 'Virtual Display ready!');
 }
 
-function saveLoginStatus(status) {
-    fs.writeFileSync(STATUS_FILE, JSON.stringify({
+async function saveLoginStatus(status) {
+    const data = {
         loggedIn: status,
-        lastUpdate: new Date()
-    }));
+        lastUpdate: new Date().toISOString()
+    };
+    await saveToFirebase(data);
     log('info', 'LOGIN_STATUS', `Login status saved as: ${status}`);
 }
 
-function getLoginStatus() {
-    if (!fs.existsSync(STATUS_FILE)) return false;
-    const data = JSON.parse(fs.readFileSync(STATUS_FILE));
-    return data.loggedIn;
+async function getLoginStatus() {
+    try {
+        const firebaseData = await getFromFirebase();
+        if (firebaseData && firebaseData.loggedIn === true) {
+            return true;
+        }
+
+        if (!fs.existsSync(STATUS_FILE)) return false;
+        const data = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
+        return data.loggedIn === true;
+    } catch (e) {
+        log('warn', 'LOGIN_STATUS', 'Failed to read login status');
+        return false;
+    }
 }
 
 async function handleFullLoginFlow() {
@@ -400,7 +449,7 @@ async function handleFullLoginFlow() {
         if (!confirmed) await new Promise(r => setTimeout(r, 1000));
     }
 
-    saveLoginStatus(true);
+    await saveLoginStatus(true);
     await logAll("🎯 Login confirmed by user. Redirecting to IDX...");
     await startIDXLoop();
 }
@@ -458,20 +507,22 @@ async function backupProfile() {
 
 async function restoreFromCloud() {
     try {
-        let fileId = null;
-
-        if (fs.existsSync(STATUS_FILE)) {
-            const status = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
-            fileId = status.fileId;
-        }
-
-        if (!fileId) {
-            log('warn', 'RESTORE', 'No backup fileId found in status');
+        log('info', 'RESTORE', 'Fetching latest backup from Firebase...');
+        
+        const firebaseData = await getFromFirebase();
+        
+        if (!firebaseData || !firebaseData.fileId) {
+            log('warn', 'RESTORE', 'No fileId found in Firebase');
             return false;
         }
 
-        log('info', 'RESTORE', 'Restoring profile from Telegram...');
+        const fileId = firebaseData.fileId;
+
+        log('info', 'RESTORE', `Found backup fileId: ${fileId}`);
         await restoreProfile(fileId);
+        
+        fs.writeFileSync(STATUS_FILE, JSON.stringify(firebaseData, null, 2));
+        
         return true;
     } catch (e) {
         log('error', 'PROFILE_RESTORE', `Restore failed: ${e.message}`);
@@ -487,7 +538,9 @@ async function main() {
     const profileExists = fs.existsSync(PROFILE_PATH) &&
         fs.readdirSync(PROFILE_PATH).length > 10;
 
-    if (!profileExists || !getLoginStatus()) {
+    const isLoggedIn = await getLoginStatus();
+
+    if (!profileExists || !isLoggedIn) {
         log('warn', 'PROFILE', 'No valid local profile found. Trying cloud restore...');
         const restored = await restoreFromCloud();
 
@@ -503,9 +556,7 @@ async function main() {
         '--no-sandbox',
         '--password-store=basic',
         '--disable-dev-shm-usage'
-    ], {
-        env: process.env
-    });
+    ], { env: process.env });
 
     await new Promise(r => setTimeout(r, 15000));
 
@@ -519,7 +570,9 @@ async function main() {
 
     log('success', 'PUPPETEER', 'Puppeteer connected.');
 
-    if (getLoginStatus()) {
+    const currentlyLoggedIn = await getLoginStatus();
+
+    if (currentlyLoggedIn) {
         await logAll("♻️ Restored session. Starting IDX loop...");
         await startIDXLoop();
     } else {
@@ -527,13 +580,13 @@ async function main() {
     }
 
     setInterval(async () => {
-        if (getLoginStatus()) {
+        if (await getLoginStatus()) {
             await backupProfile();
         }
     }, 30 * 60 * 1000);
 
-    setTimeout(() => {
-        if (getLoginStatus()) backupProfile();
+    setTimeout(async () => {
+        if (await getLoginStatus()) await backupProfile();
     }, 5 * 60 * 1000);
 
     log('info', 'TELEGRAM', 'Listening for commands...');
@@ -545,14 +598,11 @@ async function main() {
             await backupProfile();
         }
 
-        if (msg === '/view') {
+        else if (msg === '/view') {
             await logAll("📸 Taking screenshot...");
             try {
                 const screenshotPath = path.resolve(__dirname, 'screenshot.png');
-                await page.screenshot({
-                    path: screenshotPath,
-                    fullPage: false
-                });
+                await page.screenshot({ path: screenshotPath, fullPage: false });
                 await sendTgPhoto(screenshotPath);
                 await logAll("🖼️ Screenshot sent successfully!");
             } catch (err) {
@@ -560,19 +610,14 @@ async function main() {
             }
         }
 
-        if (msg === '/view') {
-            await logAll("📸 Taking screenshot...");
+        else if (msg === '/stop') {
+            await logAll("🛑 STOP Command Received! Logging out...");
+            if (refreshTimer) clearInterval(refreshTimer);
             try {
-                const screenshotPath = path.resolve(__dirname, 'screenshot.png');
-                await page.screenshot({
-                    path: screenshotPath,
-                    fullPage: false
-                });
-                await sendTgPhoto(screenshotPath);
-                await logAll("🖼️ Screenshot sent successfully!");
-            } catch (err) {
-                await logAll("❌ Failed to take screenshot: " + err.message);
-            }
+                await page.goto('https://accounts.google.com/logout', { waitUntil: 'networkidle2' });
+            } catch (e) {}
+            await saveLoginStatus(false);
+            await handleFullLoginFlow();
         }
 
         await new Promise(r => setTimeout(r, 3000));
@@ -727,11 +772,16 @@ process.on('SIGINT', () => {
 });
 
 main().catch(async (e) => {
-    log('error', 'CRITICAL', `CRITICAL ERROR: ${e.message}`);
-    await tgRequest('sendMessage', {
-        chat_id: CHAT_ID,
-        text: errorMsg
-    });
+    const errorMsg = `CRITICAL ERROR: ${e.message}`;
+    log('error', 'CRITICAL', errorMsg);
+    try {
+        await tgRequest('sendMessage', {
+            chat_id: CHAT_ID,
+            text: errorMsg
+        });
+    } catch (tgErr) {
+        log('error', 'CRITICAL', tgErr.message);
+    }
 });
 
 if (process.env.URL) {
