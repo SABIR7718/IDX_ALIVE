@@ -32,7 +32,9 @@ const {
 } = require('child_process');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
-const { log } = require('@sabir7718/log');
+const {
+    log
+} = require('@sabir7718/log');
 const path = require('path');
 const https = require('https');
 const http = require('http');
@@ -63,7 +65,7 @@ process.on('unhandledRejection', (reason) => log('error', 'CRITICAL', reason));
 
 async function saveToFirebase(data) {
     fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
-    log('info', 'SESSION', `💾 Session saved with fileId: ${data.fileId}`);
+    log('info', 'SESSION', `Session saved with fileId: ${data.fileId}`);
 }
 
 function isProfileValid() {
@@ -268,27 +270,54 @@ function sendTgPhoto(imagePath) {
 function setupVPSEnvironment() {
     log('info', 'SYSTEM_CHECK', 'Checking system dependencies for VPS...');
 
+    let chromeInstalled = false;
     try {
         execSync('google-chrome --version', {
             stdio: 'ignore'
         });
-        log('info', 'CHROME', 'Chrome detected.');
+        log('success', 'CHROME', 'Google Chrome is already installed.');
+        chromeInstalled = true;
     } catch (e) {
-        log('warn', 'CHROME', 'Chrome NOT found. Installing...');
-        if (!fs.existsSync(DEB_FILE)) {
-            log('error', 'FATAL', `❌ DEB file not found: ${DEB_FILE}`);
-            process.exit(1);
-        }
+        log('warn', 'CHROME', 'Chrome not found. Starting automatic download...');
+    }
+
+    if (!chromeInstalled) {
+        const debUrl = 'https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb';
+        const debFile = DEB_FILE || path.join(__dirname, 'google-chrome-stable_current_amd64.deb');
+
+        log('info', 'CHROME', 'Downloading latest Chrome from Google...');
+
         try {
-            execSync(`sudo dpkg -i ${DEB_FILE}`, {
-                stdio: 'ignore'
+            execSync(`wget -q --show-progress -O "${debFile}" "${debUrl}"`, {
+                stdio: 'inherit'
             });
-        } catch (err) {
+            log('success', 'CHROME', 'Chrome .deb downloaded successfully!');
+        } catch (downloadErr) {
+            log('error', 'CHROME', 'Failed to download Chrome. Trying curl...');
+            try {
+                execSync(`curl -L -o "${debFile}" "${debUrl}"`, {
+                    stdio: 'inherit'
+                });
+                log('success', 'CHROME', 'Chrome downloaded using curl!');
+            } catch (curlErr) {
+                log('error', 'FATAL', 'Failed to download Chrome with both wget and curl.');
+                process.exit(1);
+            }
+        }
+
+        log('info', 'CHROME', 'Installing Google Chrome...');
+        try {
+            execSync(`sudo dpkg -i "${debFile}"`, {
+                stdio: 'inherit'
+            });
+        } catch (dpkgErr) {
+            log('warn', 'CHROME', 'Fixing dependencies...');
             execSync('sudo apt-get install -f -y', {
-                stdio: 'ignore'
+                stdio: 'inherit'
             });
         }
-        log('success', 'CHROME_SETUP', 'Chrome installed!');
+
+        log('success', 'CHROME', 'Google Chrome installed successfully!');
     }
 
     try {
@@ -297,7 +326,7 @@ function setupVPSEnvironment() {
         });
         log('success', 'XVFB', 'Xvfb detected.');
     } catch (e) {
-        log('warn', 'XVFB', 'Xvfb (Virtual Display) NOT found. Installing...');
+        log('warn', 'XVFB', 'Xvfb not found. Installing...');
         execSync('sudo apt-get update && sudo apt-get install -y xvfb', {
             stdio: 'inherit'
         });
