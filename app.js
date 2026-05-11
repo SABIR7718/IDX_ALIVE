@@ -545,12 +545,34 @@ async function main() {
             await backupProfile();
         }
 
-        if (msg === '/stop') {
-            ...
+        if (msg === '/view') {
+            await logAll("📸 Taking screenshot...");
+            try {
+                const screenshotPath = path.resolve(__dirname, 'screenshot.png');
+                await page.screenshot({
+                    path: screenshotPath,
+                    fullPage: false
+                });
+                await sendTgPhoto(screenshotPath);
+                await logAll("🖼️ Screenshot sent successfully!");
+            } catch (err) {
+                await logAll("❌ Failed to take screenshot: " + err.message);
+            }
         }
 
         if (msg === '/view') {
-            ...
+            await logAll("📸 Taking screenshot...");
+            try {
+                const screenshotPath = path.resolve(__dirname, 'screenshot.png');
+                await page.screenshot({
+                    path: screenshotPath,
+                    fullPage: false
+                });
+                await sendTgPhoto(screenshotPath);
+                await logAll("🖼️ Screenshot sent successfully!");
+            } catch (err) {
+                await logAll("❌ Failed to take screenshot: " + err.message);
+            }
         }
 
         await new Promise(r => setTimeout(r, 3000));
