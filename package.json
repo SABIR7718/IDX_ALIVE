@@ -1,7 +1,33 @@
 {
+  "name": "puppeteer-telegram-vps-bot",
+  "version": "1.0.0",
+  "description": "Puppeteer automation bot with Telegram control, VPS support, and session backup",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "puppeteer",
+    "telegram",
+    "automation",
+    "vps",
+    "chrome",
+    "bot"
+  ],
+  "author": "SABIR7718",
+  "license": "ISC",
   "dependencies": {
-    "puppeteer": "^24.37.5",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "archiver": "^6.0.1",
+    "dotenv": "^16.4.5",
+    "puppeteer": "^23.0.0",
+    "@sabir7718/log": "latest",
+    "unzipper": "^0.10.14"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
