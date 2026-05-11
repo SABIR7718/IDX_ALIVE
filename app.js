@@ -275,17 +275,65 @@ async function restoreProfile(fileId) {
 
         fs.createReadStream(zipPath)
 
-            .pipe(require('unzipper').Extract({
-                path: PROFILE_PATH
-            }))
+        .pipe(require('unzipper').Extract({
+            path: PROFILE_PATH
+        }))
 
-            .on('close', resolve)
+        .on('close', resolve)
 
-            .on('error', reject);
+        .on('error', reject);
 
     });
 
     fs.unlinkSync(zipPath);
+
+    const badFiles = [
+
+        'SingletonLock',
+        'SingletonSocket',
+        'SingletonCookie',
+        'DevToolsActivePort'
+
+    ];
+
+    for (const file of badFiles) {
+
+        const target = path.join(PROFILE_PATH, file);
+
+        if (fs.existsSync(target)) {
+
+            fs.rmSync(target, {
+                force: true
+            });
+
+        }
+
+    }
+
+    const defaultPath = path.join(PROFILE_PATH, 'Default');
+
+    const removeInside = [
+
+        'Current Session',
+        'Current Tabs',
+        'Last Session',
+        'Last Tabs'
+
+    ];
+
+    for (const file of removeInside) {
+
+        const target = path.join(defaultPath, file);
+
+        if (fs.existsSync(target)) {
+
+            fs.rmSync(target, {
+                force: true
+            });
+
+        }
+
+    }
 
     log(
         'success',
@@ -643,12 +691,12 @@ async function main() {
     log('info', 'CHROME', 'Launching Chrome...');
 
     try {
-        execSync('pkill -9 chrome || true');
-        execSync('pkill -9 google-chrome || true');
+        execSync('pkill -9 -f chrome || true');
+        execSync('pkill -9 -f google-chrome || true');
     } catch (e) {}
 
-    await new Promise(r => setTimeout(r, 3000));
-
+    await new Promise(r => setTimeout(r, 4000));
+    
     const chromeArgs = [
         '--headless=new',
         '--remote-debugging-address=0.0.0.0',
@@ -662,10 +710,18 @@ async function main() {
         '--no-zygote',
         '--password-store=basic',
         '--disable-background-networking',
-        '--disable-features=Translate,OptimizationHints',
+        '--disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider',
         '--disable-sync',
-        '--disable-extensions',
-        '--disable-default-apps'
+        '--disable-default-apps',
+        '--disable-component-update',
+        '--disable-domain-reliability',
+        '--disable-breakpad',
+        '--disable-crash-reporter',
+        '--disable-logging',
+        '--disable-popup-blocking',
+        '--disable-infobars',
+        '--mute-audio',
+        '--window-size=1280,800'
     ];
 
     const S7Chrome = spawn('google-chrome', chromeArgs, {
@@ -676,18 +732,23 @@ async function main() {
 
     S7Chrome.unref();
 
-    log('info', 'CHROME', 'Waiting for Chrome debugging port...');
+    log('info', 'CHROME', 'Waiting for debugging port (max 90s)...');
 
     let retries = 0;
-    const maxRetries = 60;
+    const maxRetries = 90;
 
     while (retries < maxRetries) {
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
+
             const response = await fetch('http://127.0.0.1:9222/json/version', {
-                timeout: 2000
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+
             if (response.ok) {
-                log('success', 'CHROME', `Debugging port ready after ${retries} seconds!`);
+                log('success', 'CHROME', `Debugging port ready after ${retries}s!`);
                 break;
             }
         } catch (e) {}
@@ -695,17 +756,22 @@ async function main() {
         retries++;
         await new Promise(r => setTimeout(r, 1000));
 
-        if (retries % 8 === 0) {
+        if (retries % 10 === 0) {
             log('warn', 'CHROME', `Still waiting... (${retries}s)`);
+        }
+
+        if (retries === 45) {
+            log('warn', 'CHROME', 'Taking too long → Restarting Chrome...');
+            try { execSync('pkill -9 -f chrome || true'); } catch(e){}
+            
+            const newChrome = spawn('google-chrome', chromeArgs, { detached: true, stdio: 'ignore', env: process.env });
+            newChrome.unref();
         }
     }
 
     if (retries >= maxRetries) {
-        log('error', 'CHROME', 'Chrome failed to start debugging port! Restarting...');
-        try {
-            execSync('pkill -9 chrome || true');
-        } catch (e) {}
-        throw new Error("Chrome debugging port not available");
+        log('error', 'CHROME', '❌ Chrome failed multiple times. Check VPS resources.');
+        throw new Error("Chrome debugging port not available after retries");
     }
 
     browser = await puppeteer.connect({
