@@ -684,8 +684,12 @@ async function backupProfile() {
                 await browser.disconnect();
             }
 
-            execSync('pkill -9 -f chrome || true');
-            execSync('pkill -9 -f google-chrome || true');
+            execSync('pkill -9 chrome || true');
+            execSync('pkill -9 google-chrome || true');
+            execSync('pkill -9 chromium || true');
+            execSync('rm -rf /tmp/.com.google.Chrome* || true');
+            execSync('rm -rf /tmp/.org.chromium.Chromium* || true');
+            execSync('rm -f /tmp/.X99-lock || true');
 
         } catch (e) {}
 
@@ -854,52 +858,46 @@ async function main() {
     log('info', 'CHROME', 'Launching Chrome...');
 
     try {
-        execSync('pkill -9 -f chrome || true');
-        execSync('pkill -9 -f google-chrome || true');
+        execSync('pkill -9 chrome || true');
+        execSync('pkill -9 google-chrome || true');
+        execSync('pkill -9 chromium || true');
+        execSync('rm -rf /tmp/.com.google.Chrome* || true');
+        execSync('rm -rf /tmp/.org.chromium.Chromium* || true');
+        execSync('rm -f /tmp/.X99-lock || true');
     } catch (e) {}
 
     await new Promise(r => setTimeout(r, 4000));
 
     const chromeArgs = [
-
         '--remote-debugging-address=0.0.0.0',
-
         '--remote-debugging-port=9222',
-
         `--user-data-dir=${PROFILE_PATH}`,
 
+        '--headless=new',
         '--no-sandbox',
-
         '--disable-setuid-sandbox',
-
         '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--single-process',
+        '--no-zygote',
 
         '--no-first-run',
-
         '--no-default-browser-check',
-
         '--password-store=basic',
-
-        '--start-maximized',
 
         '--window-size=1366,768',
 
         '--disable-popup-blocking',
-
         '--disable-backgrounding-occluded-windows',
-
         '--disable-renderer-backgrounding',
-
         '--disable-background-timer-throttling',
-
         '--disable-ipc-flooding-protection',
-
         '--disable-infobars',
 
         '--lang=en-US,en',
-
         '--ignore-certificate-errors'
-
     ];
 
     const S7Chrome = spawn('google-chrome', chromeArgs, {
@@ -909,6 +907,10 @@ async function main() {
     });
 
     S7Chrome.unref();
+
+    S7Chrome.on('exit', (code) => {
+        log('error', 'CHROME', `Chrome exited with code ${code}`);
+    });
 
     log('info', 'CHROME', 'Waiting for debugging port (max 90s)...');
 
