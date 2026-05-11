@@ -643,49 +643,70 @@ async function main() {
     log('info', 'CHROME', 'Launching Chrome...');
 
     try {
-
         execSync('pkill -9 chrome || true');
         execSync('pkill -9 google-chrome || true');
-
     } catch (e) {}
 
     await new Promise(r => setTimeout(r, 3000));
 
-    const S7Chrome = spawn('google-chrome', [
-
+    const chromeArgs = [
         '--headless=new',
-
         '--remote-debugging-address=0.0.0.0',
-
         '--remote-debugging-port=9222',
-
         `--user-data-dir=${PROFILE_PATH}`,
-
         '--no-sandbox',
-
         '--disable-setuid-sandbox',
-
         '--disable-dev-shm-usage',
-
         '--disable-gpu',
-
         '--no-first-run',
-
         '--no-zygote',
+        '--password-store=basic',
+        '--disable-background-networking',
+        '--disable-features=Translate,OptimizationHints',
+        '--disable-sync',
+        '--disable-extensions',
+        '--disable-default-apps'
+    ];
 
-        '--password-store=basic'
-
-    ], {
-
+    const S7Chrome = spawn('google-chrome', chromeArgs, {
         detached: true,
         stdio: 'ignore',
         env: process.env
-
     });
 
     S7Chrome.unref();
 
-    await new Promise(r => setTimeout(r, 15000));
+    log('info', 'CHROME', 'Waiting for Chrome debugging port...');
+
+    let retries = 0;
+    const maxRetries = 60;
+
+    while (retries < maxRetries) {
+        try {
+            const response = await fetch('http://127.0.0.1:9222/json/version', {
+                timeout: 2000
+            });
+            if (response.ok) {
+                log('success', 'CHROME', `Debugging port ready after ${retries} seconds!`);
+                break;
+            }
+        } catch (e) {}
+
+        retries++;
+        await new Promise(r => setTimeout(r, 1000));
+
+        if (retries % 8 === 0) {
+            log('warn', 'CHROME', `Still waiting... (${retries}s)`);
+        }
+    }
+
+    if (retries >= maxRetries) {
+        log('error', 'CHROME', 'Chrome failed to start debugging port! Restarting...');
+        try {
+            execSync('pkill -9 chrome || true');
+        } catch (e) {}
+        throw new Error("Chrome debugging port not available");
+    }
 
     browser = await puppeteer.connect({
         browserURL: 'http://127.0.0.1:9222',
@@ -695,7 +716,7 @@ async function main() {
     const pages = await browser.pages();
     page = pages.length > 0 ? pages[0] : await browser.newPage();
 
-    log('success', 'PUPPETEER', 'Puppeteer connected.');
+    log('success', 'PUPPETEER', 'Puppeteer connected successfully.');
 
     const currentlyLoggedIn = await getLoginStatus();
 
