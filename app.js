@@ -764,15 +764,11 @@ async function backupProfile() {
 
         ];
 
-        const S7Chrome = spawn(
-            'google-chrome',
-            chromeArgs,
-            {
-                detached: true,
-                stdio: 'ignore',
-                env: process.env
-            }
-        );
+        const S7Chrome = spawn('google-chrome', chromeArgs, {
+            detached: true,
+            stdio: 'ignore',
+            env: process.env
+        });
 
         S7Chrome.unref();
 
@@ -785,9 +781,9 @@ async function backupProfile() {
 
         const pages = await browser.pages();
 
-        page = pages.length > 0
-            ? pages[0]
-            : await browser.newPage();
+        page = pages.length > 0 ?
+            pages[0] :
+            await browser.newPage();
 
         log(
             'success',
