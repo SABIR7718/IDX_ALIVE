@@ -68,7 +68,9 @@ async function saveToFirebase(data) {
     try {
         const response = await fetch(FIREBASE_URL, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(data)
         });
 
@@ -132,26 +134,27 @@ function tgRequest(method, data = {}) {
     });
 }
 
-function uploadToTelegram(filePath) {
-    return new Promise((resolve, reject) => {
-        const form = new FormData();
-        form.append('chat_id', CHAT_ID);
-        form.append('document', fs.createReadStream(filePath), 'profile.zip');
-
-        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
+async function uploadToTelegram(filePath) {
+    const res = await fetch(
+        `https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
             method: 'POST',
-            body: form
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.ok && data.result?.document?.file_id) {
-                resolve(data.result.document.file_id);
-            } else {
-                reject(new Error(data.description || 'Upload failed'));
-            }
-        })
-        .catch(reject);
-    });
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                chat_id: CHAT_ID,
+                document: filePath
+            })
+        }
+    );
+
+    const data = await res.json();
+
+    if (data.ok) {
+        return data.result.document.file_id;
+    }
+
+    throw new Error(data.description || 'Upload failed');
 }
 
 async function saveSession(fileId) {
@@ -356,17 +359,21 @@ function setupVPSEnvironment() {
 
 async function startVirtualDisplay() {
     log('info', 'XVFB', 'Cleaning up old Xvfb processes...');
-    
+
     try {
-        execSync('pkill -f Xvfb', { stdio: 'ignore' });
-        execSync('rm -f /tmp/.X99-lock', { stdio: 'ignore' });
+        execSync('pkill -f Xvfb', {
+            stdio: 'ignore'
+        });
+        execSync('rm -f /tmp/.X99-lock', {
+            stdio: 'ignore'
+        });
     } catch (e) {}
 
     log('info', 'XVFB', 'Starting Virtual Display (DISPLAY=:99)...');
     xvfbProcess = spawn('Xvfb', [':99', '-screen', '0', '1280x800x24'], {
         stdio: 'ignore'
     });
-    
+
     process.env.DISPLAY = ':99';
     await new Promise(r => setTimeout(r, 3000));
     log('success', 'DISPLAY', 'Virtual Display ready!');
@@ -442,6 +449,10 @@ async function handleFullLoginFlow() {
     }
 
     await saveLoginStatus(true);
+
+    await logAll("📦 Creating first backup...");
+    await backupProfile();
+
     await logAll("🎯 Login confirmed by user. Redirecting to IDX...");
     await startIDXLoop();
 }
@@ -500,9 +511,9 @@ async function backupProfile() {
 async function restoreFromCloud() {
     try {
         log('info', 'RESTORE', 'Fetching latest backup from Firebase...');
-        
+
         const firebaseData = await getFromFirebase();
-        
+
         if (!firebaseData || !firebaseData.fileId) {
             log('warn', 'RESTORE', 'No fileId found in Firebase');
             return false;
@@ -512,9 +523,9 @@ async function restoreFromCloud() {
 
         log('info', 'RESTORE', `Found backup fileId: ${fileId}`);
         await restoreProfile(fileId);
-        
+
         fs.writeFileSync(STATUS_FILE, JSON.stringify(firebaseData, null, 2));
-        
+
         return true;
     } catch (e) {
         log('error', 'PROFILE_RESTORE', `Restore failed: ${e.message}`);
@@ -548,7 +559,9 @@ async function main() {
         '--no-sandbox',
         '--password-store=basic',
         '--disable-dev-shm-usage'
-    ], { env: process.env });
+    ], {
+        env: process.env
+    });
 
     await new Promise(r => setTimeout(r, 15000));
 
@@ -567,6 +580,8 @@ async function main() {
     if (currentlyLoggedIn) {
         await logAll("♻️ Restored session. Starting IDX loop...");
         await startIDXLoop();
+        await logAll("📦 Creating startup backup...");
+        await backupProfile();
     } else {
         await handleFullLoginFlow();
     }
@@ -588,25 +603,26 @@ async function main() {
         if (msg === '/backup') {
             await logAll("📤 Manual backup requested...");
             await backupProfile();
-        }
-
-        else if (msg === '/view') {
+        } else if (msg === '/view') {
             await logAll("📸 Taking screenshot...");
             try {
                 const screenshotPath = path.resolve(__dirname, 'screenshot.png');
-                await page.screenshot({ path: screenshotPath, fullPage: false });
+                await page.screenshot({
+                    path: screenshotPath,
+                    fullPage: false
+                });
                 await sendTgPhoto(screenshotPath);
                 await logAll("🖼️ Screenshot sent successfully!");
             } catch (err) {
                 await logAll("❌ Failed to take screenshot: " + err.message);
             }
-        }
-
-        else if (msg === '/stop') {
+        } else if (msg === '/stop') {
             await logAll("🛑 STOP Command Received! Logging out...");
             if (refreshTimer) clearInterval(refreshTimer);
             try {
-                await page.goto('https://accounts.google.com/logout', { waitUntil: 'networkidle2' });
+                await page.goto('https://accounts.google.com/logout', {
+                    waitUntil: 'networkidle2'
+                });
             } catch (e) {}
             await saveLoginStatus(false);
             await handleFullLoginFlow();
