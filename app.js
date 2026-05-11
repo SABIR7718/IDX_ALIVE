@@ -672,6 +672,25 @@ async function backupProfile() {
 
         }
 
+        log(
+            'warn',
+            'BACKUP',
+            'Closing Chrome before backup...'
+        );
+
+        try {
+
+            if (browser) {
+                await browser.disconnect();
+            }
+
+            execSync('pkill -9 -f chrome || true');
+            execSync('pkill -9 -f google-chrome || true');
+
+        } catch (e) {}
+
+        await new Promise(r => setTimeout(r, 5000));
+
         const zipPath = path.join(
             __dirname,
             'profile_backup.zip'
@@ -696,6 +715,85 @@ async function backupProfile() {
         );
 
         fs.unlinkSync(zipPath);
+
+        log(
+            'info',
+            'BACKUP',
+            'Restarting Chrome after backup...'
+        );
+
+        const chromeArgs = [
+
+            '--remote-debugging-address=0.0.0.0',
+
+            '--remote-debugging-port=9222',
+
+            `--user-data-dir=${PROFILE_PATH}`,
+
+            '--no-sandbox',
+
+            '--disable-setuid-sandbox',
+
+            '--disable-dev-shm-usage',
+
+            '--no-first-run',
+
+            '--no-default-browser-check',
+
+            '--password-store=basic',
+
+            '--start-maximized',
+
+            '--window-size=1366,768',
+
+            '--disable-popup-blocking',
+
+            '--disable-backgrounding-occluded-windows',
+
+            '--disable-renderer-backgrounding',
+
+            '--disable-background-timer-throttling',
+
+            '--disable-ipc-flooding-protection',
+
+            '--disable-infobars',
+
+            '--lang=en-US,en',
+
+            '--ignore-certificate-errors'
+
+        ];
+
+        const S7Chrome = spawn(
+            'google-chrome',
+            chromeArgs,
+            {
+                detached: true,
+                stdio: 'ignore',
+                env: process.env
+            }
+        );
+
+        S7Chrome.unref();
+
+        await new Promise(r => setTimeout(r, 8000));
+
+        browser = await puppeteer.connect({
+            browserURL: 'http://127.0.0.1:9222',
+            defaultViewport: null
+        });
+
+        const pages = await browser.pages();
+
+        page = pages.length > 0
+            ? pages[0]
+            : await browser.newPage();
+
+        log(
+            'success',
+            'BACKUP',
+            'Chrome restored after backup'
+        );
 
         return fileId;
 
