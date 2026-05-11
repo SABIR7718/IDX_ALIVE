@@ -800,19 +800,11 @@ async function main() {
 
         '--disable-ipc-flooding-protection',
 
-        '--disable-features=IsolateOrigins,site-per-process',
-
-        '--disable-site-isolation-trials',
-
-        '--disable-blink-features=AutomationControlled',
-
         '--disable-infobars',
 
         '--lang=en-US,en',
 
         '--enable-javascript',
-
-        '--use-gl=swiftshader',
 
         '--ignore-certificate-errors'
 
