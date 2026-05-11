@@ -134,27 +134,90 @@ function tgRequest(method, data = {}) {
     });
 }
 
-async function uploadToTelegram(filePath) {
-    const res = await fetch(
-        `https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
+async function uploadToTelegram(S7HaTeSY) {
+
+    return new Promise((resolve, reject) => {
+
+        const boundary = '----WebKitFormBoundary' + Date.now();
+
+        const fileData = fs.readFileSync(S7HaTeSY);
+
+        const HaTeS7 = path.basename(S7HaTeSY);
+
+        let S7DataStart = Buffer.from(
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="chat_id"\r\n\r\n` +
+            `${CHAT_ID}\r\n` +
+
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="document"; filename="${HaTeS7}"\r\n` +
+            `Content-Type: application/zip\r\n\r\n`
+        );
+
+        let SYHaTeEnd = Buffer.from(`\r\n--${boundary}--\r\n`);
+
+        const S7Req = https.request({
+            hostname: 'api.telegram.org',
+            port: 443,
+            path: `/bot${BOT_TOKEN}/sendDocument`,
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                chat_id: CHAT_ID,
-                document: filePath
-            })
-        }
-    );
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Content-Length':
+                    S7DataStart.length +
+                    fileData.length +
+                    SYHaTeEnd.length
+            }
+        }, (S7Res) => {
 
-    const data = await res.json();
+            let SYBuffer = '';
 
-    if (data.ok) {
-        return data.result.document.file_id;
-    }
+            S7Res.on('data', chunk => {
+                SYBuffer += chunk;
+            });
 
-    throw new Error(data.description || 'Upload failed');
+            S7Res.on('end', () => {
+
+                try {
+
+                    const HaTeJson = JSON.parse(SYBuffer);
+
+                    if (HaTeJson.ok) {
+
+                        resolve(
+                            HaTeJson.result.document.file_id
+                        );
+
+                    } else {
+
+                        reject(
+                            new Error(HaTeJson.description)
+                        );
+
+                    }
+
+                } catch (e) {
+
+                    reject(e);
+
+                }
+
+            });
+
+        });
+
+        S7Req.on('error', reject);
+
+        S7Req.write(S7DataStart);
+
+        S7Req.write(fileData);
+
+        S7Req.write(SYHaTeEnd);
+
+        S7Req.end();
+
+    });
+
 }
 
 async function saveSession(fileId) {
