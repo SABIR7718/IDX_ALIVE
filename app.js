@@ -771,36 +771,46 @@ async function main() {
     await new Promise(r => setTimeout(r, 4000));
 
     const chromeArgs = [
-        '--remote-debugging-address=0.0.0.0',
-        '--remote-debugging-port=9222',
-        `--user-data-dir=${PROFILE_PATH}`,
 
-        '--headless=new',
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-software-rasterizer',
-        '--disable-extensions',
-        '--single-process',
-        '--no-zygote',
+            '--remote-debugging-address=0.0.0.0',
 
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--password-store=basic',
+            '--remote-debugging-port=9222',
 
-        '--window-size=1366,768',
+            `--user-data-dir=${PROFILE_PATH}`,
 
-        '--disable-popup-blocking',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding',
-        '--disable-background-timer-throttling',
-        '--disable-ipc-flooding-protection',
-        '--disable-infobars',
+            '--no-sandbox',
 
-        '--lang=en-US,en',
-        '--ignore-certificate-errors'
-    ];
+            '--disable-setuid-sandbox',
+
+            '--disable-dev-shm-usage',
+
+            '--no-first-run',
+
+            '--no-default-browser-check',
+
+            '--password-store=basic',
+
+            '--start-maximized',
+
+            '--window-size=1366,768',
+
+            '--disable-popup-blocking',
+
+            '--disable-backgrounding-occluded-windows',
+
+            '--disable-renderer-backgrounding',
+
+            '--disable-background-timer-throttling',
+
+            '--disable-ipc-flooding-protection',
+
+            '--disable-infobars',
+
+            '--lang=en-US,en',
+
+            '--ignore-certificate-errors'
+
+        ];
 
     const S7Chrome = spawn('google-chrome', chromeArgs, {
         detached: true,
