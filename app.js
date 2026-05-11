@@ -901,14 +901,40 @@ async function main() {
                 await logAll("❌ Failed to take screenshot: " + err.message);
             }
         } else if (msg === '/stop') {
-            await logAll("🛑 STOP Command Received! Logging out...");
-            if (refreshTimer) clearInterval(refreshTimer);
+            await logAll("🛑 FULL RESET Command Received! Clearing everything...");
+
+            if (refreshTimer) {
+                clearInterval(refreshTimer);
+                refreshTimer = null;
+            }
+
             try {
-                await page.goto('https://accounts.google.com/logout', {
-                    waitUntil: 'networkidle2'
-                });
+                execSync('pkill -9 -f chrome || true');
+                execSync('pkill -9 -f google-chrome || true');
             } catch (e) {}
+
+            await new Promise(r => setTimeout(r, 3000));
+
+            if (fs.existsSync(PROFILE_PATH)) {
+                try {
+                    fs.rmSync(PROFILE_PATH, {
+                        recursive: true,
+                        force: true
+                    });
+                    log('success', 'RESET', 'Old profile deleted');
+                } catch (e) {
+                    log('error', 'RESET', 'Failed to delete profile');
+                }
+            }
+
             await saveLoginStatus(false);
+
+            if (fs.existsSync(STATUS_FILE)) {
+                fs.unlinkSync(STATUS_FILE);
+            }
+
+            await logAll("✅ Full Reset Completed!\n\n🔄 Starting Fresh Login Flow...");
+
             await handleFullLoginFlow();
         }
 
