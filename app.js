@@ -163,8 +163,7 @@ async function uploadToTelegram(S7HaTeSY) {
             method: 'POST',
             headers: {
                 'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                'Content-Length':
-                    S7DataStart.length +
+                'Content-Length': S7DataStart.length +
                     fileData.length +
                     SYHaTeEnd.length
             }
@@ -254,20 +253,46 @@ function downloadFromTelegram(fileId, outputPath) {
 }
 
 async function restoreProfile(fileId) {
+
     const zipPath = path.join(__dirname, "restore.zip");
+
+    if (fs.existsSync(PROFILE_PATH)) {
+
+        fs.rmSync(PROFILE_PATH, {
+            recursive: true,
+            force: true
+        });
+
+    }
+
+    fs.mkdirSync(PROFILE_PATH, {
+        recursive: true
+    });
 
     await downloadFromTelegram(fileId, zipPath);
 
     await new Promise((resolve, reject) => {
+
         fs.createReadStream(zipPath)
+
             .pipe(require('unzipper').Extract({
                 path: PROFILE_PATH
             }))
+
             .on('close', resolve)
+
             .on('error', reject);
+
     });
 
-    log('success', 'PROFILE_RESTORE', 'Profile restored from Telegram');
+    fs.unlinkSync(zipPath);
+
+    log(
+        'success',
+        'PROFILE_RESTORE',
+        'Profile restored from Telegram'
+    );
+
 }
 
 function zipProfile(zipPath) {
@@ -616,15 +641,49 @@ async function main() {
     }
 
     log('info', 'CHROME', 'Launching Chrome...');
-    spawn('google-chrome', [
-        `--remote-debugging-port=9222`,
+
+    try {
+
+        execSync('pkill -9 chrome || true');
+        execSync('pkill -9 google-chrome || true');
+
+    } catch (e) {}
+
+    await new Promise(r => setTimeout(r, 3000));
+
+    const S7Chrome = spawn('google-chrome', [
+
+        '--headless=new',
+
+        '--remote-debugging-address=0.0.0.0',
+
+        '--remote-debugging-port=9222',
+
         `--user-data-dir=${PROFILE_PATH}`,
+
         '--no-sandbox',
-        '--password-store=basic',
-        '--disable-dev-shm-usage'
+
+        '--disable-setuid-sandbox',
+
+        '--disable-dev-shm-usage',
+
+        '--disable-gpu',
+
+        '--no-first-run',
+
+        '--no-zygote',
+
+        '--password-store=basic'
+
     ], {
+
+        detached: true,
+        stdio: 'ignore',
         env: process.env
+
     });
+
+    S7Chrome.unref();
 
     await new Promise(r => setTimeout(r, 15000));
 
