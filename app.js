@@ -59,7 +59,6 @@ let lastUpdateId = 0;
 let refreshTimer = null;
 let page = null;
 let browser = null;
-let xvfbProcess = null;
 
 process.on('uncaughtException', (err) => log('error', 'CRITICAL', err.message));
 process.on('unhandledRejection', (reason) => log('error', 'CRITICAL', reason));
@@ -478,41 +477,6 @@ function setupVPSEnvironment() {
 
         log('success', 'CHROME', 'Google Chrome installed successfully!');
     }
-
-    try {
-        execSync('which Xvfb', {
-            stdio: 'ignore'
-        });
-        log('success', 'XVFB', 'Xvfb detected.');
-    } catch (e) {
-        log('warn', 'XVFB', 'Xvfb not found. Installing...');
-        execSync('sudo apt-get update && sudo apt-get install -y xvfb', {
-            stdio: 'inherit'
-        });
-        log('success', 'XVFB', 'Xvfb installed!');
-    }
-}
-
-async function startVirtualDisplay() {
-    log('info', 'XVFB', 'Cleaning up old Xvfb processes...');
-
-    try {
-        execSync('pkill -f Xvfb', {
-            stdio: 'ignore'
-        });
-        execSync('rm -f /tmp/.X99-lock', {
-            stdio: 'ignore'
-        });
-    } catch (e) {}
-
-    log('info', 'XVFB', 'Starting Virtual Display (DISPLAY=:99)...');
-    xvfbProcess = spawn('Xvfb', [':99', '-screen', '0', '1280x800x24'], {
-        stdio: 'ignore'
-    });
-
-    process.env.DISPLAY = ':99';
-    await new Promise(r => setTimeout(r, 3000));
-    log('success', 'DISPLAY', 'Virtual Display ready!');
 }
 
 async function saveLoginStatus(status) {
@@ -741,7 +705,6 @@ async function restoreFromCloud() {
 async function main() {
     log('info', 'SYSTEM', '--- SCRIPT STARTING (VPS MODE) ---');
     setupVPSEnvironment();
-    await startVirtualDisplay();
 
     const profileExists = fs.existsSync(PROFILE_PATH) &&
         fs.readdirSync(PROFILE_PATH).length > 10;
@@ -760,57 +723,86 @@ async function main() {
     log('info', 'CHROME', 'Launching Chrome...');
 
     try {
-        execSync('pkill -9 chrome || true');
-        execSync('pkill -9 google-chrome || true');
-        execSync('pkill -9 chromium || true');
+
+        execSync('pkill -9 -f chrome || true');
+        execSync('pkill -9 -f google-chrome || true');
+        execSync('pkill -9 -f chromium || true');
+
+        execSync(`rm -rf "${PROFILE_PATH}/SingletonLock" || true`);
+        execSync(`rm -rf "${PROFILE_PATH}/SingletonSocket" || true`);
+        execSync(`rm -rf "${PROFILE_PATH}/SingletonCookie" || true`);
+        execSync(`rm -rf "${PROFILE_PATH}/DevToolsActivePort" || true`);
+
         execSync('rm -rf /tmp/.com.google.Chrome* || true');
         execSync('rm -rf /tmp/.org.chromium.Chromium* || true');
-        execSync('rm -f /tmp/.X99-lock || true');
+
     } catch (e) {}
 
     await new Promise(r => setTimeout(r, 4000));
 
     const chromeArgs = [
 
-            '--remote-debugging-address=0.0.0.0',
+        '--headless=new',
 
-            '--remote-debugging-port=9222',
+        '--remote-debugging-address=0.0.0.0',
 
-            `--user-data-dir=${PROFILE_PATH}`,
+        '--remote-debugging-port=9222',
 
-            '--no-sandbox',
+        `--user-data-dir=${PROFILE_PATH}`,
 
-            '--disable-setuid-sandbox',
+        '--no-sandbox',
 
-            '--disable-dev-shm-usage',
+        '--disable-setuid-sandbox',
 
-            '--no-first-run',
+        '--disable-dev-shm-usage',
 
-            '--no-default-browser-check',
+        '--memory-pressure-off',
 
-            '--password-store=basic',
+        '--max_old_space_size=512',
 
-            '--start-maximized',
+        '--disable-gpu',
 
-            '--window-size=1366,768',
+        '--disable-software-rasterizer',
 
-            '--disable-popup-blocking',
+        '--disable-extensions',
 
-            '--disable-backgrounding-occluded-windows',
+        '--disable-background-networking',
 
-            '--disable-renderer-backgrounding',
+        '--disable-background-timer-throttling',
 
-            '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
 
-            '--disable-ipc-flooding-protection',
+        '--disable-breakpad',
 
-            '--disable-infobars',
+        '--disable-component-update',
 
-            '--lang=en-US,en',
+        '--disable-renderer-backgrounding',
 
-            '--ignore-certificate-errors'
+        '--disable-ipc-flooding-protection',
 
-        ];
+        '--disable-popup-blocking',
+
+        '--disable-sync',
+
+        '--metrics-recording-only',
+
+        '--no-first-run',
+
+        '--no-default-browser-check',
+
+        '--password-store=basic',
+
+        '--window-size=1366,768',
+
+        '--hide-scrollbars',
+
+        '--mute-audio',
+
+        '--lang=en-US,en',
+
+        '--ignore-certificate-errors'
+
+    ];
 
     const S7Chrome = spawn('google-chrome', chromeArgs, {
         detached: true,
@@ -1105,9 +1097,6 @@ setInterval(() => {
 
 });
 
-process.on('exit', () => {
-    if (xvfbProcess) xvfbProcess.kill();
-});
 process.on('SIGINT', () => {
     process.exit();
 });
