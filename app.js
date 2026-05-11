@@ -803,10 +803,6 @@ async function main() {
         '--disable-infobars',
 
         '--lang=en-US,en',
-        
-        '--disable-blink-features=AutomationControlled',
-
-        '--enable-javascript',
 
         '--ignore-certificate-errors'
 
