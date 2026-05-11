@@ -275,13 +275,13 @@ async function restoreProfile(fileId) {
 
         fs.createReadStream(zipPath)
 
-        .pipe(require('unzipper').Extract({
-            path: PROFILE_PATH
-        }))
+            .pipe(require('unzipper').Extract({
+                path: PROFILE_PATH
+            }))
 
-        .on('close', resolve)
+            .on('close', resolve)
 
-        .on('error', reject);
+            .on('error', reject);
 
     });
 
@@ -621,27 +621,96 @@ async function startIDXLoop() {
 }
 
 async function backupProfile() {
+
     try {
-        if (!fs.existsSync(PROFILE_PATH) || fs.readdirSync(PROFILE_PATH).length === 0) {
-            log('warn', 'BACKUP', 'Profile directory empty, skipping backup');
+
+        if (
+            !fs.existsSync(PROFILE_PATH) ||
+            fs.readdirSync(PROFILE_PATH).length === 0
+        ) {
+
+            log(
+                'warn',
+                'BACKUP',
+                'Profile directory empty, skipping backup'
+            );
+
             return null;
+
         }
 
-        const zipPath = path.join(__dirname, 'profile_backup.zip');
+        const firebaseData = await getFromFirebase();
+
+        if (
+            firebaseData &&
+            firebaseData.updated
+        ) {
+
+            const lastBackup = new Date(
+                firebaseData.updated
+            ).getTime();
+
+            const now = Date.now();
+
+            const oneHour = 60 * 60 * 1000;
+
+            if ((now - lastBackup) < oneHour) {
+
+                const mins = Math.floor(
+                    (now - lastBackup) / 60000
+                );
+
+                log(
+                    'info',
+                    'BACKUP',
+                    `Last backup ${mins} min ago → skipping`
+                );
+
+                return firebaseData.fileId || null;
+
+            }
+
+        }
+
+        const zipPath = path.join(
+            __dirname,
+            'profile_backup.zip'
+        );
+
         await zipProfile(zipPath);
 
-        log('info', 'BACKUP', 'Uploading profile to Telegram...');
+        log(
+            'info',
+            'BACKUP',
+            'Uploading profile to Telegram...'
+        );
+
         const fileId = await uploadToTelegram(zipPath);
 
         await saveSession(fileId);
 
-        log('success', 'BACKUP', 'Profile successfully backed up to Telegram');
+        log(
+            'success',
+            'BACKUP',
+            'Profile successfully backed up to Telegram'
+        );
+
         fs.unlinkSync(zipPath);
+
         return fileId;
+
     } catch (e) {
-        log('error', 'BACKUP', `Backup failed: ${e.message}`);
+
+        log(
+            'error',
+            'BACKUP',
+            `Backup failed: ${e.message}`
+        );
+
         return null;
+
     }
+
 }
 
 async function restoreFromCloud() {
@@ -696,7 +765,7 @@ async function main() {
     } catch (e) {}
 
     await new Promise(r => setTimeout(r, 4000));
-    
+
     const chromeArgs = [
         '--headless=new',
         '--remote-debugging-address=0.0.0.0',
@@ -762,9 +831,15 @@ async function main() {
 
         if (retries === 45) {
             log('warn', 'CHROME', 'Taking too long → Restarting Chrome...');
-            try { execSync('pkill -9 -f chrome || true'); } catch(e){}
-            
-            const newChrome = spawn('google-chrome', chromeArgs, { detached: true, stdio: 'ignore', env: process.env });
+            try {
+                execSync('pkill -9 -f chrome || true');
+            } catch (e) {}
+
+            const newChrome = spawn('google-chrome', chromeArgs, {
+                detached: true,
+                stdio: 'ignore',
+                env: process.env
+            });
             newChrome.unref();
         }
     }

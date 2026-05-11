@@ -50,4 +50,4 @@ RUN npm cache clean --force
 RUN npm install --no-audit --no-fund
 
 # TEST FOR SY
-CMD Xvfb :99 -screen 0 1280x800x24 & node app.js
+CMD Xvfb :99 -screen 0 1280x800x24 & node --max-old-space-size=256 app.js
