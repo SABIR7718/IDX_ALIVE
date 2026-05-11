@@ -767,30 +767,55 @@ async function main() {
     await new Promise(r => setTimeout(r, 4000));
 
     const chromeArgs = [
-        '--headless=new',
+
         '--remote-debugging-address=0.0.0.0',
+
         '--remote-debugging-port=9222',
+
         `--user-data-dir=${PROFILE_PATH}`,
+
         '--no-sandbox',
+
         '--disable-setuid-sandbox',
+
         '--disable-dev-shm-usage',
-        '--disable-gpu',
+
         '--no-first-run',
-        '--no-zygote',
+
+        '--no-default-browser-check',
+
         '--password-store=basic',
-        '--disable-background-networking',
-        '--disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider',
-        '--disable-sync',
-        '--disable-default-apps',
-        '--disable-component-update',
-        '--disable-domain-reliability',
-        '--disable-breakpad',
-        '--disable-crash-reporter',
-        '--disable-logging',
+
+        '--start-maximized',
+
+        '--window-size=1366,768',
+
         '--disable-popup-blocking',
+
+        '--disable-backgrounding-occluded-windows',
+
+        '--disable-renderer-backgrounding',
+
+        '--disable-background-timer-throttling',
+
+        '--disable-ipc-flooding-protection',
+
+        '--disable-features=IsolateOrigins,site-per-process',
+
+        '--disable-site-isolation-trials',
+
+        '--disable-blink-features=AutomationControlled',
+
         '--disable-infobars',
-        '--mute-audio',
-        '--window-size=1280,800'
+
+        '--lang=en-US,en',
+
+        '--enable-javascript',
+
+        '--use-gl=swiftshader',
+
+        '--ignore-certificate-errors'
+
     ];
 
     const S7Chrome = spawn('google-chrome', chromeArgs, {
